@@ -15,14 +15,14 @@
 
 #include "utils.hpp"
 
-wc::wordCounter::wordCounter(const std::string &dir, uint32_t num_threads, uint32_t ngram)
+nc::ngramCounter::ngramCounter(const std::string &dir, uint32_t num_threads, uint32_t ngram)
     : dir(dir),
       num_threads(num_threads),
       ngram(ngram)
 {
 }
 
-void wc::wordCounter::compute()
+void nc::ngramCounter::compute()
 {
     // this tracks which files have already been processed or are being processed
     std::mutex wc_mtx;
@@ -157,7 +157,7 @@ char removePunctuationAndNumbers(char c)
     return (c >= 48 && c <= 57 || c == 33 || c == 44 || c == 46 || c == 63) ? 124 : c;
 }
 
-void wc::wordCounter::process_file(fs::path &file, std::map<std::string, uint64_t> &local_freq)
+void nc::ngramCounter::process_file(fs::path &file, std::map<std::string, uint64_t> &local_freq)
 {
     // read the entire file and update local_freq
     std::ifstream fin(file);

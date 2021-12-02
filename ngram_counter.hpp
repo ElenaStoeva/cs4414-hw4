@@ -6,9 +6,9 @@
 
 namespace fs = std::filesystem;
 
-namespace wc
+namespace nc
 {
-    class wordCounter
+    class ngramCounter
     {
         // main storage structure for word frequencies
         std::map<std::string, uint64_t> freq;
@@ -20,8 +20,8 @@ namespace wc
         void process_file(fs::path &file, std::map<std::string, uint64_t> &local_freq);
 
     public:
-        wordCounter(const std::string &dir, uint32_t num_threads, uint32_t ngram);
+        ngramCounter(const std::string &dir, uint32_t num_threads, uint32_t ngram);
         void compute();
         void display();
     };
-} // namespace wc
+} // namespace nc
