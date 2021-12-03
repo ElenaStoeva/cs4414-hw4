@@ -1,3 +1,5 @@
+// Adapted from Sagar's word counter
+
 #include <iostream>
 
 #include "ngram_counter.hpp"

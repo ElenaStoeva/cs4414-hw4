@@ -1,4 +1,4 @@
-// Adapted from Sagar's word counter solution
+// Adapted from Sagar's word counter
 
 #include "utils.hpp"
 

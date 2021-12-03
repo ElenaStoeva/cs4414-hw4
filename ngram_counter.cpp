@@ -1,4 +1,4 @@
-// Adapted from Sagar's word counter solution
+// Adapted from Sagar's word counter
 
 #include "ngram_counter.hpp"
 
@@ -146,15 +146,14 @@ char toLowerCase(char c)
     return (c >= 65 && c <= 90) ? c + 32 : c;
 }
 
-char removeNewLine(char c)
+char removeNewlineAndTab(char c)
 {
-    return (c == 10) ? 32 : c;
+    return (c == 9 || c == 10) ? 32 : c;
 }
 
-// TODO: add more punctuation marks
 char removePunctuationAndNumbers(char c)
 {
-    return (c >= 48 && c <= 57 || c == 33 || c == 44 || c == 46 || c == 63) ? 124 : c;
+    return (c >= 33 && c <= 64 || c >= 91 && c <= 96 || c >= 123 && c <= 126) ? 124 : c;
 }
 
 void nc::ngramCounter::process_file(fs::path &file, std::map<std::string, uint64_t> &local_freq)
@@ -165,7 +164,7 @@ void nc::ngramCounter::process_file(fs::path &file, std::map<std::string, uint64
     buffer << fin.rdbuf();
     std::string contents = buffer.str();
     std::transform(contents.begin(), contents.end(), contents.begin(), toLowerCase);
-    std::transform(contents.begin(), contents.end(), contents.begin(), removeNewLine);
+    std::transform(contents.begin(), contents.end(), contents.begin(), removeNewlineAndTab);
     std::transform(contents.begin(), contents.end(), contents.begin(), removePunctuationAndNumbers);
 
     // break the word into sequences of alphanumeric characters, ignoring other characters
