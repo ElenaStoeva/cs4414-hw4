@@ -4,7 +4,7 @@
 
 #include "ngram_counter.hpp"
 
-// this program computes word frequencies for all .h and .c files in the given directory and its subdirectories
+// this program computes ngram frequencies for all .txt files in the given directory and its subdirectories
 int main(int argc, char *argv[])
 {
   if (argc != 4)
@@ -13,6 +13,9 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  nc::ngramCounter ngram_counter(argv[1], std::stoi(std::string(argv[2]).substr(3)), std::stoi(std::string(argv[3]).substr(3)));
+  int number_threads = atoi(argv[2] + 3);
+  int ngram_length = atoi(argv[3] + 3);
+
+  nc::ngramCounter ngram_counter(argv[1], number_threads, ngram_length);
   ngram_counter.compute();
 }

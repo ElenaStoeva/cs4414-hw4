@@ -28,14 +28,15 @@ void nc::ngramCounter::compute()
     std::mutex wc_mtx;
 
     std::vector<fs::path> files_to_sweep = utils::find_all_files(dir, [](const std::string &extension)
-                                                                 { return extension == ".txt" || extension == ".hex"; });
+                                                                 { return extension == ".txt"; });
 
     // threads use this atomic as fetch and add to decide on which files to process
     std::atomic<uint64_t> global_index = 0;
 
+    // each thread has a promise from each thread
+    // the promises' values are vectors of pairs of ngrams and their frequencies
     std::vector<std::vector<std::promise<std::vector<std::pair<std::string, uint64_t>>>>> shuffle_matrix;
-    // // add promises
-
+    // add promises to matrix
     for (int i = 0; i < num_threads; i++)
     {
         std::vector<std::promise<std::vector<std::pair<std::string, uint64_t>>>> vec;
@@ -47,8 +48,9 @@ void nc::ngramCounter::compute()
         shuffle_matrix.push_back(std::move(vec));
     }
 
+    // this matrix of futures corresponds to the matrix of promises above
     std::vector<std::vector<std::future<std::vector<std::pair<std::string, uint64_t>>>>> shuffle_matrix_fut;
-    // // add futures
+    // add futures to matrix
     for (int i = 0; i < num_threads; i++)
     {
         std::vector<std::future<std::vector<std::pair<std::string, uint64_t>>>> vec;
@@ -60,22 +62,17 @@ void nc::ngramCounter::compute()
         shuffle_matrix_fut.push_back(std::move(vec));
     }
 
-    // ngram table that will store the ngram strings at indexes corresponding to their hash values
-    // std::vector<std::string> ngram_table;
-    // 64 bit unsigned integers
-    // no need to do it
-
     auto sweep = [this, &files_to_sweep, &global_index, &wc_mtx, &shuffle_matrix, &shuffle_matrix_fut](int thread_id)
     {
+        // process the files that are assigned to this thread
         std::map<std::string, uint64_t> local_freq;
-
         uint64_t file_index;
         while ((file_index = global_index++) < files_to_sweep.size())
         {
             process_file(files_to_sweep[file_index], local_freq);
         }
 
-        // Assign pairs to other threads
+        // assign pairs to other threads
         std::hash<std::string> str_hash;
         std::vector<std::vector<std::pair<std::string, uint64_t>>> assignment_matrix(num_threads);
         for (auto pair : local_freq)
@@ -84,15 +81,13 @@ void nc::ngramCounter::compute()
             size_t assigned_thread = str_hash(pair.first) % num_threads;
             assignment_matrix.at(assigned_thread).push_back(pair);
         }
-        // Each assigned vector is the value for a promise in the shuffle matrix
+        // each assigned vector is the value for a promise in the shuffle matrix
         for (int i = 0; i < num_threads; i++)
         {
-            // std::cout << thread_id << ": " << i << std::endl;
-            // std::promise<std::vector<std::pair<std::string, uint64_t>>> *pr = shuffle_matrix.at(i).at(thread_id);
             (shuffle_matrix.at(i).at(thread_id)).set_value(assignment_matrix.at(i));
         }
 
-        // Process pairs that have been assigned to this thread
+        // process pairs that have been assigned to this thread
         std::map<std::string, uint64_t> reduced_freq;
         for (int t = 0; t < num_threads; t++)
         {
@@ -104,16 +99,15 @@ void nc::ngramCounter::compute()
         }
 
         std::vector<std::pair<std::string, uint64_t>> top_five(5);
-        std::partial_sort_copy(reduced_freq.begin(),
-                               reduced_freq.end(),
-                               top_five.begin(),
-                               top_five.end(),
+        std::partial_sort_copy(reduced_freq.begin(), reduced_freq.end(),
+                               top_five.begin(), top_five.end(),
                                [](std::pair<const std::string, uint64_t> const &l,
                                   std::pair<const std::string, uint64_t> const &r)
                                {
                                    return l.second > r.second;
                                });
 
+        // print out the 5 ngrams with largest frequencies
         std::lock_guard<std::mutex> lock(wc_mtx);
         std::cout << "Thread " << thread_id << ":" << std::endl;
         for (auto [ngram, cnt] : top_five)
@@ -167,22 +161,19 @@ void nc::ngramCounter::process_file(fs::path &file, std::map<std::string, uint64
     std::transform(contents.begin(), contents.end(), contents.begin(), removeNewlineAndTab);
     std::transform(contents.begin(), contents.end(), contents.begin(), removePunctuationAndNumbers);
 
-    // break the word into sequences of alphanumeric characters, ignoring other characters
     std::regex rgx("[|]");
     std::sregex_token_iterator iter(contents.begin(), contents.end(), rgx, -1);
     std::sregex_token_iterator end;
 
-    std::vector<std::string> ngrams;
-
+    // iterate through each sequence of words that are separate by spaces only
     for (; iter != end; ++iter)
     {
         if (*iter != "")
         {
-            // find ngrams
+            // find all ngrams in the current sequence of words that are separated by spaces
             std::string sequence = *iter;
-            // std::cout << sequence << std::endl;
-            std::regex rgx("[a-z]+");
-            std::sregex_token_iterator iter_seq(sequence.begin(), sequence.end(), rgx);
+            std::regex rgx_word("[a-z]+");
+            std::sregex_token_iterator iter_seq(sequence.begin(), sequence.end(), rgx_word);
             std::sregex_token_iterator end_seq;
             for (; iter_seq != end_seq; ++iter_seq)
             {
